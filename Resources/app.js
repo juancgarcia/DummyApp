@@ -1,4 +1,9 @@
+var appNamespace = {};
+
 Ti.include('dummyApp/grid.js');
+
+appNamespace.ui = {};
+Ti.include('dummyApp/styles.js');
 
 // this sets the background color of the master UIView (when there are no windows/tab groups on it)
 Titanium.UI.setBackgroundColor('#000');
@@ -6,29 +11,40 @@ Titanium.UI.setBackgroundColor('#000');
 
 var winStats,
 	wrapperConfig,
-	scroller,
-	wrapper,
+	gameContainer,
+	gameBoard,
 	puzzleGrid;
 
 var win = Titanium.UI.createWindow({ backgroundColor:'#ddd' });
-win.orientationModes = [ Titanium.UI.PORTRAIT ];
+win.orientationModes = [
+	Titanium.UI.PORTRAIT,
+	Titanium.UI.LANDSCAPE_LEFT,
+	Titanium.UI.LANDSCAPE_RIGHT,
+	Titanium.UI.UPSIDE_PORTRAIT
+];
 
 
 win.addEventListener('open', function() {
 	
 	winStats = win.size;
+	
+	var dollar = $$;/*{
+		platformMin: Math.min(winStats.width, winStats.height),
+		platformMax: Math.max(winStats.width, winStats.height),
+		containerShrink: .9
+	};*/dollar.containerShrink = .9;
 
 	var scrollerSize = function() {
-		var _size = {}, _minDimension = Math.min(winStats.width * .9, winStats.height * .9);
+		var _size = {}, _minDimension = Math.min(winStats.width * dollar.containerShrink, winStats.height * dollar.containerShrink);
 		_size.width = Math.floor(_minDimension/*winStats.width * .9*/);
 		_size.height = Math.floor(_minDimension/*winStats.height * .75*/);
 		return _size;
 	};
 	
-	scroller = Ti.UI.createView({/*Ti.UI.createScrollView({*/
-		width: scrollerSize().width,
-		top:0,
-		height: scrollerSize().height,
+	gameContainer = Ti.UI.createView({/*Ti.UI.createScrollView({*/
+		width: dollar.platformMin * dollar.containerShrink,
+		//top:0,
+		height: dollar.platformMin * dollar.containerShrink,
 		borderColor:'#aaa',
 		borderWidth:2,
 		backgroundColor:'#fff',
@@ -36,38 +52,39 @@ win.addEventListener('open', function() {
 	});
 	
 	overlay = Ti.UI.createView({/*Ti.UI.createScrollView({*/
-		width: scrollerSize().width,
-		height: scrollerSize().height,
+		width: dollar.platformMin * dollar.containerShrink,
+		height: dollar.platformMin * dollar.containerShrink,
 		top:0
 	});
 	
 	
-	wrapper = Ti.UI.createView({
+	gameBoard = Ti.UI.createView({
 		//top:0,
 		//left:0
 	});
 	
-	win.add(scroller);
-	scroller.add(wrapper);
+	win.add(gameContainer);
+	gameContainer.add(gameBoard);
+	//win.add(gameBoard);
 	win.add(overlay);
 	
-	// wrapper.addEventListener('touchmove', function(e){
-		// Ti.API.info('wrapper touched');
-		// //var _scrollType = wrapper.scrollType;
-		// //Ti.API.info('wrapper scrollType: '+_scrollType);
+	// gameBoard.addEventListener('touchmove', function(e){
+		// Ti.API.info('gameBoard touched');
+		// //var _scrollType = gameBoard.scrollType;
+		// //Ti.API.info('gameBoard scrollType: '+_scrollType);
 	// });
 	
 	var gridConfig = {
 		rows: 4,
 		cols: 4,
-		size: Math.min(scrollerSize().height, scrollerSize().width),
-		containerObj: wrapper
+		size: Math.min(dollar.platformMin * dollar.containerShrink, dollar.platformMin * dollar.containerShrink),
+		containerObj: gameBoard
 	};
 	
 	gridConfig.subSize = Math.floor(gridConfig.size/Math.max(gridConfig.cols, gridConfig.rows));
 	
-	wrapper.width = gridConfig.subSize * gridConfig.cols;
-	wrapper.height = gridConfig.subSize * gridConfig.rows;
+	gameBoard.width = gridConfig.subSize * gridConfig.cols;
+	gameBoard.height = gridConfig.subSize * gridConfig.rows;
 	puzzleGrid = Grid.createGrid(gridConfig);
 	
 	// default state is zoom-in
@@ -98,7 +115,7 @@ win.addEventListener('open', function() {
 	};
 	
 	//var assignZoom = function(config) {		
-		//wrapper.addEventListener('doubletap', toggleZoom );
+		//gameBoard.addEventListener('doubletap', toggleZoom );
 	//};
 
 	var transformPrimary = Titanium.UI.create2DMatrix().scale(1.0);
@@ -106,13 +123,6 @@ win.addEventListener('open', function() {
 	var animatePrimary = Titanium.UI.createAnimation();
 	animatePrimary.transform = transformPrimary;
 	animatePrimary.duration = 600;
-	
-	
-	var transformSecondary = Titanium.UI.create2DMatrix().scale(2.0);
-	
-	var animateSecondary = Titanium.UI.createAnimation();
-	animateSecondary.transform = transformSecondary;
-	animateSecondary.duration = 600;
 
 	// when this animation completes, scale to normal size
 	// a.addEventListener('complete', function()
@@ -136,26 +146,29 @@ win.addEventListener('open', function() {
 			
 			
         	var tempTrans = Titanium.UI.create2DMatrix().scale(2.0).translate( xTrans, yTrans);
-        	var tempAnim = Titanium.UI.createAnimation({transform: tempTrans, duration: 600});
+        	var tempAnim = Titanium.UI.createAnimation();
 			tempAnim.transform = tempTrans;
 			tempAnim.duration = 600;
 			
-			wrapper.animate(tempAnim);
+			gameContainer.animate(tempAnim);
             overlay.width = 0;
             overlay.height = 0;
+            
+        	zoomed_in = !zoomed_in;
+        	e.handled = true;
         }
-        zoomed_in = !zoomed_in;
 	});	
  
-	scroller.addEventListener(/*'scale'*/'doubletap', function(e)
+	/*gameContainer*//*gameBoard*/win.addEventListener(/*'scale'*/'doubletap', function(e)
 	{		 
-        if (zoomed_in)
+        if (!e.handled && zoomed_in)
         {   
-            wrapper.animate(animatePrimary);
-            overlay.width = scrollerSize().width;
-            overlay.height = scrollerSize().height;
+            gameContainer.animate(animatePrimary);
+            overlay.width = dollar.platformMin * dollar.containerShrink;
+            overlay.height = dollar.platformMin * dollar.containerShrink;
+            
+        	zoomed_in = !zoomed_in;
         }
-        zoomed_in = !zoomed_in;
 	});
 	
 	
@@ -182,51 +195,3 @@ win.addEventListener('open', function() {
 });
 
 win.open();
-
-
-
-// win.show();
-
-
-// var wrapperShadow = Ti.UI.createView({
-	// width:'95%',
-	// height:2,
-	// backgroundColor:'#bbb',
-	// top:297
-// });
-
-// win.add(wrapperShadow);
-
-// var terms = Ti.UI.createLabel({
-	// text:'I agree that this demo is very very cool.\nCan we get a shout out?',
-	// textAlign:'center',
-	// width:'auto',
-	// height:'auto',
-	// font:{fontFamily:'Arial',fontSize:12},
-	// color:'#555',
-	// shadowColor:"#fff",
-	// shadowOffset:{x:1,y:1},
-	// bottom:12
-// });
-
-
-// Titanium.Gesture.addEventListener('orientationchange', function(e){
-	// //var win = Ti.UI.currentWindow;
-	// // win.orientationModes = [  
-	    // // e.orientation
-	// // ];
-	// win.left = 0;
-	// win.right = 0;
-	// //var foo = win.size;
-	// // win.height = Ti.UI.;
-	// // win.width = '100%';
-// 	
-    // //wrapper.left = 0; 
-    // //wrapper.right = 0;
-    // wrapper.width = '95%'; 
-    // wrapper.height = '95%';
-//             
-    // Ti.API.info('orientation changed: '+ e.orientation); 
-// });
-
-//win.open();
